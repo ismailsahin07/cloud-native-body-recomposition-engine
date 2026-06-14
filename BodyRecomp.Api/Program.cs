@@ -25,6 +25,16 @@ builder.Services.AddSingleton<CosmosClient>(serviceProvider =>
     });
 });
 
+builder.Services.AddKeyedSingleton<Container>("UserDataContainer", (sp, key) =>
+{
+    var cosmosClient = sp.GetRequiredService<CosmosClient>();
+
+    string dbName = "NutritionFitnessDb";
+    string containerName = "UserData";
+
+    return cosmosClient.GetContainer(dbName, containerName);
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

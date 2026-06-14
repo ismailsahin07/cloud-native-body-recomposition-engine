@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Security.Claims;
@@ -15,9 +16,9 @@ public class WorkoutEndpoint
     private readonly Container _container;
     private readonly ILogger<WorkoutEndpoint> _logger;
 
-    public WorkoutEndpoint(CosmosClient cosmosClient, ILogger<WorkoutEndpoint> logger)
+    public WorkoutEndpoint([FromKeyedServices("UserDataContainer")] Container container, ILogger<WorkoutEndpoint> logger)
     {
-        _container = cosmosClient.GetContainer("NutritionFitnessDb", "UserData");
+        _container = container;
         _logger = logger;
     }
 
@@ -45,7 +46,7 @@ public class WorkoutEndpoint
             if (workoutSplit == null)
                 return new BadRequestObjectResult("Invalid payload mapping.");
         }
-        catch(JsonException)
+        catch (JsonException)
         {
             return new BadRequestObjectResult("Malformed JSON payload.");
         }
@@ -58,13 +59,13 @@ public class WorkoutEndpoint
         try
         {
             ItemResponse<WorkoutSplit> response = await _container.UpsertItemAsync(
-                workoutSplit, 
+                workoutSplit,
                 partitionKey: new PartitionKey(userId));
 
             _logger.LogInformation($"Workout split processed via Upsert. Request Charge: {response.RequestCharge}");
             return new OkObjectResult(response.Resource);
         }
-        catch(CosmosException ex)
+        catch (CosmosException ex)
         {
             _logger.LogError($"CosmosDB tracking upsert failure: {ex.Message}");
             return new StatusCodeResult(StatusCodes.Status500InternalServerError);
@@ -90,17 +91,17 @@ public class WorkoutEndpoint
         try
         {
             ItemResponse<WorkoutSplit> response = await _container.ReadItemAsync<WorkoutSplit>(
-                id: documentId, 
+                id: documentId,
                 partitionKey: new PartitionKey(userId));
 
             return new OkObjectResult(response.Resource);
         }
-        catch(CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             _logger.LogWarning($"No active split template records located for user: {userId}");
             return new NotFoundObjectResult("No active training split template discovered. Please create one.");
         }
-        catch(CosmosException ex)
+        catch (CosmosException ex)
         {
             _logger.LogError($"Error executing point read sequence: {ex.Message}");
             return new StatusCodeResult(StatusCodes.Status500InternalServerError);

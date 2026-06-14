@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text.Json;
@@ -11,14 +12,12 @@ namespace BodyRecomp.Api.Endpoints;
 
 public class MacrosEndpoint
 {
-    private readonly CosmosClient _cosmosClient;
     private readonly Container _container;
     private readonly ILogger<MacrosEndpoint> _logger;
 
-    public MacrosEndpoint(CosmosClient cosmosClient, Container container, ILogger<MacrosEndpoint> logger)
+    public MacrosEndpoint([FromKeyedServices("UserDataContainer")] Container container, ILogger<MacrosEndpoint> logger)
     {
-        _cosmosClient = cosmosClient;
-        _container = _cosmosClient.GetContainer("NutritionFitnessDb", "UserData");
+        _container = container;
         _logger = logger;
     }
 
@@ -98,7 +97,7 @@ public class MacrosEndpoint
         var results = new List<DailyMacroLog>();
 
         using FeedIterator<DailyMacroLog> feedIterator = _container.GetItemQueryIterator<DailyMacroLog>(
-                queryDefinition, 
+                queryDefinition,
                 requestOptions: queryOptions
             );
 
