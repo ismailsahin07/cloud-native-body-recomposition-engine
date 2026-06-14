@@ -1,3 +1,4 @@
+using BodyRecomp.Api.Configuration;
 using BodyRecomp.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ public class WorkoutEndpoint
     private readonly Container _container;
     private readonly ILogger<WorkoutEndpoint> _logger;
 
-    public WorkoutEndpoint([FromKeyedServices("UserDataContainer")] Container container, ILogger<WorkoutEndpoint> logger)
+    public WorkoutEndpoint([FromKeyedServices(CosmosContainerKey.UserData)] Container container, ILogger<WorkoutEndpoint> logger)
     {
         _container = container;
         _logger = logger;

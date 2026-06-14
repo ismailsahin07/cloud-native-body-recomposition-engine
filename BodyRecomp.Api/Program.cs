@@ -1,4 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
+using BodyRecomp.Api.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -25,7 +26,7 @@ builder.Services.AddSingleton<CosmosClient>(serviceProvider =>
     });
 });
 
-builder.Services.AddKeyedSingleton<Container>("UserDataContainer", (sp, key) =>
+builder.Services.AddKeyedSingleton<Container>(CosmosContainerKey.UserData, (sp, key) =>
 {
     var cosmosClient = sp.GetRequiredService<CosmosClient>();
 

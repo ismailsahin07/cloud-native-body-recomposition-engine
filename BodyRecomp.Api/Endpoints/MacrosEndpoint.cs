@@ -1,4 +1,5 @@
 using BodyRecomp.Api.Models;
+using BodyRecomp.Api.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
@@ -15,7 +16,7 @@ public class MacrosEndpoint
     private readonly Container _container;
     private readonly ILogger<MacrosEndpoint> _logger;
 
-    public MacrosEndpoint([FromKeyedServices("UserDataContainer")] Container container, ILogger<MacrosEndpoint> logger)
+    public MacrosEndpoint([FromKeyedServices(CosmosContainerKey.UserData)] Container container, ILogger<MacrosEndpoint> logger)
     {
         _container = container;
         _logger = logger;
