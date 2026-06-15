@@ -1,8 +1,10 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Sas;
+using BodyRecomp.Api.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 
@@ -11,14 +13,12 @@ namespace BodyRecomp.Api.Endpoints;
 public class PhotosEndpoint
 {
     private readonly ILogger<PhotosEndpoint> _logger;
-    private readonly string _storageConnectionString;
+    private readonly BlobContainerClient _blobContainerClient;
 
-    public PhotosEndpoint(ILogger<PhotosEndpoint> logger)
+    public PhotosEndpoint([FromKeyedServices(StorageContainerKey.ProgressPhotos)] BlobContainerClient blobContainerClient,ILogger<PhotosEndpoint> logger)
     {
+        _blobContainerClient = blobContainerClient;
         _logger = logger;
-
-        _storageConnectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
-            ?? throw new InvalidOperationException("Storage connection string is not configured.");
     }
 
     /// <summary>
@@ -40,13 +40,11 @@ public class PhotosEndpoint
 
         try
         {
-            var blobServiceClient = new BlobServiceClient(_storageConnectionString);
-            var blobContainerClient = blobServiceClient.GetBlobContainerClient("progress-photos");
-            var blobClient = blobContainerClient.GetBlobClient(blobName);
+            var blobClient = _blobContainerClient.GetBlobClient(blobName);
 
             var sasBuilder = new BlobSasBuilder
             {
-                BlobContainerName = blobContainerClient.Name,
+                BlobContainerName = _blobContainerClient.Name,
                 BlobName = blobName,
                 Resource = "b",
                 ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(15)

@@ -1,4 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
+using Azure.Storage.Blobs;
 using BodyRecomp.Api.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Cosmos;
@@ -34,6 +35,25 @@ builder.Services.AddKeyedSingleton<Container>(CosmosContainerKey.UserData, (sp, 
     string containerName = "UserData";
 
     return cosmosClient.GetContainer(dbName, containerName);
+});
+
+builder.Services.AddSingleton<BlobServiceClient>(serviceProvider =>
+{
+    string connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
+        ?? throw new InvalidOperationException("Storage connection string is not configured.");
+    return new BlobServiceClient(connectionString);
+});
+
+builder.Services.AddKeyedSingleton<BlobContainerClient>(StorageContainerKey.ProgressPhotos, (sp, key) =>
+{
+    var blobServiceClient = sp.GetRequiredService<BlobServiceClient>();
+    return blobServiceClient.GetBlobContainerClient("progress-photos");
+});
+
+builder.Services.AddKeyedSingleton<BlobContainerClient>(StorageContainerKey.Thumbnails, (sp, key) =>
+{
+    var blobServiceClient = sp.GetRequiredService<BlobServiceClient>();
+    return blobServiceClient.GetBlobContainerClient("thumbnails");
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
