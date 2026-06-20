@@ -50,7 +50,7 @@ public class PhotosEndpoint
                 ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(15)
             };
 
-            sasBuilder.SetPermissions(BlobAccountSasPermissions.Write);
+            sasBuilder.SetPermissions(BlobSasPermissions.Write);
 
             Uri uploadUri = blobClient.GenerateSasUri(sasBuilder);
 
