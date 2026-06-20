@@ -31,20 +31,20 @@ public class ImageResizeTrigger
     {
         _logger.LogInformation($"Event Grid trigger intercepted event type: {egEvent.EventType}");
 
-        if(egEvent.EventType != "Microsoft.Storage.BlobCreated")
+        if (egEvent.EventType != "Microsoft.Storage.BlobCreated")
         {
             _logger.LogError("Unsupported event type received. Skipping execution.");
             return;
         }
 
         using JsonDocument doc = JsonDocument.Parse(egEvent.Data.ToString());
-        if(!doc.RootElement.TryGetProperty("url", out JsonElement urlElement))
+        if (!doc.RootElement.TryGetProperty("url", out JsonElement urlElement))
         {
             _logger.LogError("Event payload missing 'url' property metadata.");
             return;
         }
 
-        string blobUrl = urlElement.ToString();
+        string blobUrl = urlElement.GetString()!;
         _logger.LogInformation($"New blob detected at target URL: {blobUrl}");
 
         string blobName = GetBlobNameFromUrl(blobUrl, _rawPhotosContainer.Name);
