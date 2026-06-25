@@ -37,7 +37,7 @@ public class ImageResizeTrigger
             return;
         }
 
-        using JsonDocument doc = JsonDocument.Parse(egEvent.Data.ToString());
+        using JsonDocument doc = JsonDocument.Parse(egEvent.Data.ToMemory());
         if (!doc.RootElement.TryGetProperty("url", out JsonElement urlElement))
         {
             _logger.LogError("Event payload missing 'url' property metadata.");
