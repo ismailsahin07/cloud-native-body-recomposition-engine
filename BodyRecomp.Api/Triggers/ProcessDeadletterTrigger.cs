@@ -21,14 +21,14 @@ public class ProcessDeadletterTrigger
         _logger.LogWarning($"Alert: A storage event has permanently failed delivery and been dead-lettered. File name: {name}");
 
         JsonNode deadLetterNode = JsonNode.Parse(deadLetterJson)!;
-        
-        if(deadLetterNode is not JsonArray jsonArray)
+
+        if (deadLetterNode is not JsonArray jsonArray)
         {
             _logger.LogError("Dead-letter JSON structure was not an array as expected.");
             return;
         }
 
-        foreach(JsonNode? eventNode in jsonArray)
+        foreach (JsonNode? eventNode in jsonArray)
         {
             if (eventNode == null) continue;
 

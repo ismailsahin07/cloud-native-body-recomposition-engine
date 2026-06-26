@@ -178,7 +178,7 @@ public class WorkoutEndpoint
                 return new StatusCodeResult((int)batchResponse.StatusCode);
             }
 
-            _logger.LogInformation($"Workout session (and potential outbox message) saved atomically. Charge {batchResponse.RequestCharge} RUs");
+            _logger.LogInformation($"Workout session (and potential outbox message) saved atomically. Charge: {batchResponse.RequestCharge} RUs");
             return new OkObjectResult(sessionLog);
         }
         catch(CosmosException ex)

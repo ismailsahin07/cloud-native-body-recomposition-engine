@@ -15,7 +15,7 @@ public class PhotosEndpoint
     private readonly ILogger<PhotosEndpoint> _logger;
     private readonly BlobContainerClient _blobContainerClient;
 
-    public PhotosEndpoint([FromKeyedServices(StorageContainerKey.ProgressPhotos)] BlobContainerClient blobContainerClient,ILogger<PhotosEndpoint> logger)
+    public PhotosEndpoint([FromKeyedServices(StorageContainerKey.ProgressPhotos)] BlobContainerClient blobContainerClient, ILogger<PhotosEndpoint> logger)
     {
         _blobContainerClient = blobContainerClient;
         _logger = logger;
@@ -32,7 +32,7 @@ public class PhotosEndpoint
         var user = req.HttpContext.User;
         string? userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("oid")?.Value;
 
-        if(string.IsNullOrEmpty(userId))
+        if (string.IsNullOrEmpty(userId))
             return new UnauthorizedResult();
 
         string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-dd-HHmmss");
@@ -62,7 +62,7 @@ public class PhotosEndpoint
 
             return new OkObjectResult(responsePayload);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError($"Cryptographic SAS generation pipeline failure: {ex.Message}");
             return new StatusCodeResult(StatusCodes.Status500InternalServerError);
