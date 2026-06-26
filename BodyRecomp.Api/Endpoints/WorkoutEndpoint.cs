@@ -1,4 +1,3 @@
-using Azure.Messaging.ServiceBus;
 using BodyRecomp.Api.Configuration;
 using BodyRecomp.Api.Models;
 using Microsoft.AspNetCore.Http;

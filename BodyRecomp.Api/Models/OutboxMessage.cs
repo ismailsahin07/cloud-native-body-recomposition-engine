@@ -1,6 +1,4 @@
-﻿using System.Security.Policy;
-
-namespace BodyRecomp.Api.Models
+﻿namespace BodyRecomp.Api.Models
 {
     public class OutboxMessage
     {
@@ -11,5 +9,6 @@ namespace BodyRecomp.Api.Models
         public string Payload { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public int Ttl { get; set; } = 604800;
     }
 }
