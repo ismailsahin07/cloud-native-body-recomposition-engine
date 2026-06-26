@@ -38,7 +38,8 @@ namespace BodyRecomp.Api.Tests.Endpoints
 
             if (bodyPayload is not null)
             {
-                string json = JsonSerializer.Serialize(bodyPayload);
+                var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                string json = JsonSerializer.Serialize(bodyPayload, options);
                 var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
                 context.Request.Body = stream;
                 context.Request.ContentLength = stream.Length;
@@ -85,16 +86,18 @@ namespace BodyRecomp.Api.Tests.Endpoints
 
             var request = CreateMockRequest(userId: expectedUserId, bodyPayload: payload);
 
-            var mockItemResponse = new Mock<ItemResponse<DailyMacroLog>>();
-            mockItemResponse.Setup(x => x.Resource).Returns(payload);
-            mockItemResponse.Setup(x => x.RequestCharge).Returns(1.5);
-
             _mockContainer.Setup(c => c.CreateItemAsync(
                 It.IsAny<DailyMacroLog>(),
                 It.Is<PartitionKey>(pk => pk == new PartitionKey(expectedUserId)),
                 It.IsAny<ItemRequestOptions>(),
                 It.IsAny<CancellationToken>()))
-                .ReturnsAsync(mockItemResponse.Object);
+                .ReturnsAsync((DailyMacroLog item, PartitionKey pk, ItemRequestOptions opt, CancellationToken ct) =>
+                {
+                    var mockItemResponse = new Mock<ItemResponse<DailyMacroLog>>();
+                    mockItemResponse.Setup(x => x.Resource).Returns(item); 
+                    mockItemResponse.Setup(x => x.RequestCharge).Returns(1.5);
+                    return mockItemResponse.Object;
+                });
 
             var result = await _sut.LogMacros(request);
 
