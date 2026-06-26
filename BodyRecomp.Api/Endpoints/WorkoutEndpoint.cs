@@ -1,3 +1,4 @@
+using Azure.Messaging.ServiceBus;
 using BodyRecomp.Api.Configuration;
 using BodyRecomp.Api.Models;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,9 @@ public class WorkoutEndpoint
     private readonly Container _container;
     private readonly ILogger<WorkoutEndpoint> _logger;
 
-    public WorkoutEndpoint([FromKeyedServices(CosmosContainerKey.UserData)] Container container, ILogger<WorkoutEndpoint> logger)
+    public WorkoutEndpoint(
+        [FromKeyedServices(CosmosContainerKey.UserData)] Container container,
+        ILogger<WorkoutEndpoint> logger)
     {
         _container = container;
         _logger = logger;
@@ -105,6 +108,83 @@ public class WorkoutEndpoint
         catch (CosmosException ex)
         {
             _logger.LogError($"Error executing point read sequence: {ex.Message}");
+            return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// POST /api/workouts/session - Logs a completed workout day and triggers analytics if day-5 is reached
+    /// </summary>
+    [Function(nameof(LogWorkoutSession))]
+    public async Task<IActionResult> LogWorkoutSession(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "/api/workouts/session")] HttpRequest req)
+    {
+        _logger.LogInformation("Logging a completed workout session...");
+
+        var user = req.HttpContext.User;
+        string? userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("oid");
+
+        if (string.IsNullOrEmpty(userId))
+            return new UnauthorizedResult();
+
+        string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        WorkoutSessionLog sessionLog;
+
+        try
+        {
+            sessionLog = JsonSerializer.Deserialize<WorkoutSessionLog>(requestBody, options);
+            if (sessionLog is null)
+                return new BadRequestObjectResult("Invalid payload mapping.");
+        }
+        catch (JsonException)
+        {
+            return new BadRequestObjectResult("Malformed JSON payload.");
+        }
+
+        sessionLog.UserId = userId;
+        sessionLog.CompletedAt = DateTime.UtcNow;
+
+        try
+        {
+            TransactionalBatch batch = _container.CreateTransactionalBatch(new PartitionKey(userId));
+            
+            batch.CreateItem(sessionLog);
+            
+            if(sessionLog.DayNumber is 5)
+            {
+                _logger.LogInformation($"Day 5 detected. Attaching analytics command to the database transaction batch.");
+
+                var payload = new AnalyticsQueueMessage
+                {
+                    UserId = userId,
+                    TargetDate = sessionLog.CompletedAt.ToString("yyyy-MM-dd")
+                };
+
+                var outboxMessage = new OutboxMessage
+                {
+                    UserId = userId,
+                    EventType = "WeeklyAnalyticsRequested",
+                    Payload = JsonSerializer.Serialize(payload, options)
+                };
+
+                batch.CreateItem(outboxMessage);
+            }
+
+            using TransactionalBatchResponse batchResponse = await batch.ExecuteAsync();
+
+            if (!batchResponse.IsSuccessStatusCode)
+            {
+                _logger.LogError($"Transactional Batch failed with status code: {batchResponse.StatusCode} | Error: {batchResponse.ErrorMessage}");
+                return new StatusCodeResult((int)batchResponse.StatusCode);
+            }
+
+            _logger.LogInformation($"Workout session (and potential outbox message) saved atomically. Charge {batchResponse.RequestCharge} RUs");
+            return new OkObjectResult(sessionLog);
+        }
+        catch(CosmosException ex)
+        {
+            _logger.LogError($"CosmosDB write failure: {ex.Message}");
             return new StatusCodeResult(StatusCodes.Status500InternalServerError);
         }
     }

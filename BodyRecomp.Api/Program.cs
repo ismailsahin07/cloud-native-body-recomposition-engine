@@ -1,3 +1,4 @@
+using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Azure.Storage.Blobs;
 using BodyRecomp.Api.Configuration;
@@ -54,6 +55,13 @@ builder.Services.AddKeyedSingleton<BlobContainerClient>(StorageContainerKey.Thum
 {
     var blobServiceClient = sp.GetRequiredService<BlobServiceClient>();
     return blobServiceClient.GetBlobContainerClient("thumbnails");
+});
+
+builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
+{
+    string connectionString = Environment.GetEnvironmentVariable("ServiceBusConnection")
+        ?? throw new InvalidOperationException("Service Bus Connection string is not configured.");
+    return new ServiceBusClient(connectionString);
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
