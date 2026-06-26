@@ -33,8 +33,8 @@ public class OutboxDispatcherTrigger
         foreach(JsonElement document in input)
         {
             if (!document.TryGetProperty("type", out JsonElement typeElement)
-                && typeElement.GetString() is not "OutboxMessage") continue;
-
+                || typeElement.GetString() is not "OutboxMessage") continue;
+            
             string id = document.GetProperty("id").GetString() ?? "UnknownID";
             string eventType = document.GetProperty("eventType").GetString() ?? "UnknownType";
             string payload = document.GetProperty("payload").GetString() ?? "{}";
