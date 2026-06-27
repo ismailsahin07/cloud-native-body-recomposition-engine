@@ -48,6 +48,26 @@ namespace BodyRecomp.Api.Tests.Endpoints
             return context.Request;
         }
 
+        private Mock<FeedIterator<T>> SetupMockFeedIterator<T>(List<T> dataToReturn)
+        {
+            var mockFeedResponse = new Mock<FeedResponse<T>>();
+
+            mockFeedResponse.As<IEnumerable<T>>()
+                .Setup(x => x.GetEnumerator())
+                .Returns(() => dataToReturn.GetEnumerator());
+
+            var mockIterator = new Mock<FeedIterator<T>>();
+
+            mockIterator.SetupSequence(x => x.HasMoreResults)
+                .Returns(true)
+                .Returns(false);
+
+            mockIterator.Setup(x => x.ReadNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockFeedResponse.Object);
+
+            return mockIterator;
+        }
+
         [Fact]
         public async Task LogMacros_WithoutUserIdClaim_ReturnsUnauthorized()
         {
@@ -65,7 +85,7 @@ namespace BodyRecomp.Api.Tests.Endpoints
 
             var badJsonStream = new MemoryStream(Encoding.UTF8.GetBytes("{ bad_json: true }"));
             request.Body = badJsonStream;
-
+           
             var result = await _sut.LogMacros(request);
 
             result.Should().BeOfType<BadRequestObjectResult>();
@@ -115,6 +135,79 @@ namespace BodyRecomp.Api.Tests.Endpoints
                 It.IsAny<ItemRequestOptions>(),
                 It.IsAny<CancellationToken>()
                 ), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMacroHistory_WithoutUserIdClaim_ReturnsUnauthorized()
+        {
+            var request = CreateMockRequest(userId: null, bodyPayload: null);
+
+            var result = await _sut.GetMacroHistory(request);
+
+            result.Should().BeOfType<UnauthorizedResult>();
+        }
+
+        [Fact]
+        public async Task GetMacroHistory_WithNoHistory_ReturnsEmptyList()
+        {
+            string expectedUser = "test-user-123";
+            var request = CreateMockRequest(userId: expectedUser, bodyPayload: null);
+            var emptyDataList = new List<DailyMacroLog>();
+
+            var mockIterator = SetupMockFeedIterator(emptyDataList);
+
+            _mockContainer.Setup(c => c.GetItemQueryIterator<DailyMacroLog>(
+                It.IsAny<QueryDefinition>(),
+                It.IsAny<string>(),
+                It.IsAny<QueryRequestOptions>()))
+                .Returns(mockIterator.Object);
+
+            var result = await _sut.GetMacroHistory(request);
+
+            result.Should().BeOfType<OkObjectResult>();
+            var okResult = (OkObjectResult)result;
+
+            var returnedList = okResult.Value as List<DailyMacroLog>;
+            returnedList.Should().NotBeNull();
+            returnedList.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task GetMacroHistory_WithExistingHistory_ReturnsPopulatedList()
+        {
+            string expectedUser = "test-user-123";
+            var request = CreateMockRequest(userId: expectedUser, bodyPayload: null);
+
+            var historycalData = new List<DailyMacroLog>()
+            {
+                new DailyMacroLog { ProteinGrams = 150, FatGrams = 50, CarbGrams = 200 },
+                new DailyMacroLog { ProteinGrams = 160, FatGrams = 55, CarbGrams = 190 }
+            };
+
+            var mockIterator = SetupMockFeedIterator(historycalData);
+
+            _mockContainer.Setup(c => c.GetItemQueryIterator<DailyMacroLog>(
+                It.IsAny<QueryDefinition>(),
+                It.IsAny<string>(),
+                It.IsAny<QueryRequestOptions>()))
+                .Returns(mockIterator.Object);
+
+            var result = await _sut.GetMacroHistory(request);
+
+            result.Should().BeOfType<OkObjectResult>();
+            var okResult = (OkObjectResult)result;
+
+            var returnedList = okResult.Value as List<DailyMacroLog>;
+            returnedList.Should().NotBeNull();
+            returnedList.Should().HaveCount(2);
+
+            returnedList[0]!.ProteinGrams.Should().Be(150);
+            returnedList[1].ProteinGrams.Should().Be(160);
+
+            _mockContainer.Verify(c => c.GetItemQueryIterator<DailyMacroLog>(
+                It.IsAny<QueryDefinition>(),
+                It.IsAny<string>(),
+                It.IsAny<QueryRequestOptions>()), Times.Once);
         }
     }
 }
