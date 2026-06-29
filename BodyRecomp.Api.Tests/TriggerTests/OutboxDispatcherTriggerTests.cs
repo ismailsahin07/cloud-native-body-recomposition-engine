@@ -60,7 +60,7 @@ namespace BodyRecomp.Api.Tests.TriggerTests
                 id = "outbox-1",
                 type = "OutboxMessage",
                 eventType = "WeeklyAnalyticsRequested",
-                payload = "{\"userId\":\"test-123\", \"targetDate\":\"2026-06-28\"}"
+                payload = "{\"userId\":\"test-123\",\"targetDate\":\"28-06-2026\"}"
             };
 
             var input = GenerateChangeFeedBatch(standardLog, validOutboxMessage);
