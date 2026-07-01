@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
@@ -29,7 +31,28 @@ public class WorkoutEndpoint
     /// POST /api/workouts - Creates or completely updates the user's active 5-day split routine
     /// </summary>
     [Function(nameof(SaveWorkoutSplit))]
-    public async Task<IActionResult> SaveWorkoutSplit([HttpTrigger(AuthorizationLevel.Anonymous, "post", "workouts")] HttpRequest req)
+    
+    [OpenApiOperation(operationId: nameof(SaveWorkoutSplit), 
+        tags: new[] { "workouts" }, 
+        Summary = "Create or update split routine", 
+        Description = "Creates or completely updates the user's active 5-day split routine.")]
+    
+    [OpenApiRequestBody(contentType: "application/json", 
+        bodyType: typeof(WorkoutSplit), 
+        Required = true, 
+        Description = "The split routine payload")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(WorkoutSplit), 
+        Description = "Successfully processed user's split.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Unauthorized, 
+        Description = "Missing or invalid JWT token.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, 
+        Description = "Malformed JSON payload.")]
+    public async Task<IActionResult> SaveWorkoutSplit([HttpTrigger(AuthorizationLevel.Function, "post", "workouts")] HttpRequest req)
     {
         _logger.LogInformation("Processing a workout split upsert request...");
 
@@ -79,7 +102,28 @@ public class WorkoutEndpoint
     /// GET /api/workouts - High-Performance Point Read lookup for the current active split routine
     /// </summary>
     [Function(nameof(GetActiveWorkoutSplit))]
-    public async Task<IActionResult> GetActiveWorkoutSplit([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "workouts")] HttpRequest req)
+    
+    [OpenApiOperation(operationId: nameof(GetActiveWorkoutSplit), 
+        tags: new[] { "workouts" }, 
+        Summary = "Retrieve active workout split", 
+        Description = "High-Performance Point Read lookup for the current active split routine.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(WorkoutSplit), 
+        Description = "Successfully retrieved active workout split.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.NotFound, 
+        contentType: "text/plain", typeof(string), 
+        Description = "No active split template records located.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "text/plain", typeof(string), 
+        Description = "Error executing point read sequence")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Unauthorized, 
+        Description = "Missing or invalid JWT token.")]
+    public async Task<IActionResult> GetActiveWorkoutSplit([HttpTrigger(AuthorizationLevel.Function, "get", Route = "workouts")] HttpRequest req)
     {
         _logger.LogInformation("Retrieving active workout split configuration...");
 
@@ -115,8 +159,43 @@ public class WorkoutEndpoint
     /// POST /api/workouts/session - Logs a completed workout day and triggers analytics if day-5 is reached
     /// </summary>
     [Function(nameof(LogWorkoutSession))]
+    [OpenApiOperation(operationId: nameof(LogWorkoutSession), 
+        tags: new[] {"workouts/session"}, 
+        Summary = "Log a completed workout session",
+        Description = "Logs a completed workout day and triggers analytics if day-5 is reached.")]
+    
+    [OpenApiRequestBody(contentType: "application/json", 
+        bodyType: typeof(WorkoutSessionLog), 
+        Required = true, 
+        Description = "The workout logging payload.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(WorkoutSessionLog), 
+        Description = "Workout session (and potential outbox message) saved atomically.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, 
+        contentType: "text/plain", 
+        bodyType: typeof(string) ,
+        Description = "Malformed JSON payload.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Unauthorized, 
+        Description = "Missing or invalid JWT token.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Conflict, 
+        Summary = "Conflict", 
+        Description = "A workout for this ID/Date already exists in the database.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.TooManyRequests, 
+        Summary = "Rate Limited", 
+        Description = "Cosmos DB RU limit exceeded. Client should retry.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.InternalServerError, 
+        Summary = "Internal Server Error", 
+        Description = "Database transaction failed or unexpected Cosmos exception.")]
+
     public async Task<IActionResult> LogWorkoutSession(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "/api/workouts/session")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "workouts/session")] HttpRequest req)
     {
         _logger.LogInformation("Logging a completed workout session...");
 

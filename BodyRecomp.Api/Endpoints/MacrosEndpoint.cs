@@ -1,11 +1,14 @@
-using BodyRecomp.Api.Models;
 using BodyRecomp.Api.Configuration;
+using BodyRecomp.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
+using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -26,7 +29,28 @@ public class MacrosEndpoint
     /// POST /api/macros - Logs a daily macronutrient snapshot
     /// </summary>
     [Function(nameof(LogMacros))]
-    public async Task<IActionResult> LogMacros([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "macros")] HttpRequest req)
+    
+    [OpenApiOperation(operationId: nameof(LogMacros), 
+        tags: new[] {"macros"},
+        Summary = "Log daily macros", 
+        Description = "Saves a daily macronutrient snapshot to Cosmos DB.")]
+    
+    [OpenApiRequestBody(contentType: "application/json", 
+        bodyType: typeof(DailyMacroLog), 
+        Required = true, 
+        Description = "The macro logging payload.")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(DailyMacroLog), 
+        Description = "Successfully saved macro log.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Unauthorized, 
+        Description = "Missing or invalid JWT token.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, 
+        Description = "Malformed JSON payload.")]
+    public async Task<IActionResult> LogMacros([HttpTrigger(AuthorizationLevel.Function, "post", Route = "macros")] HttpRequest req)
     {
         _logger.LogInformation("Processing a daily macro logging request...");
 
@@ -75,7 +99,20 @@ public class MacrosEndpoint
     /// GET /api/macros - Retrieves historical macro entries strictly for the authenticated user
     /// </summary>
     [Function(nameof(GetMacroHistory))]
-    public async Task<IActionResult> GetMacroHistory([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "macros")] HttpRequest req)
+    
+    [OpenApiOperation(operationId: nameof(GetMacroHistory), 
+        tags: new[] {"macros"}, 
+        Summary = "Get macro history", 
+        Description = "Retrieves historical macro entries strictly for the authenticated user")]
+    
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(List<DailyMacroLog>), 
+        Description = "List of historical macro logs.")]
+    
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Unauthorized, 
+        Description = "Missing or Invalid JWT token.")]
+    public async Task<IActionResult> GetMacroHistory([HttpTrigger(AuthorizationLevel.Function, "get", Route = "macros")] HttpRequest req)
     {
         _logger.LogInformation("Processing macro historical query request...");
 

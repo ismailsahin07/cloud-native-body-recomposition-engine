@@ -22,7 +22,7 @@ public class OutboxDispatcherTrigger
         containerName: "UserData",
         Connection = "CosmosConnectionString",
         LeaseContainerName = "leases",
-        CreateLeaseContainerIfNotExists = true)] IReadOnlyList<JsonElement> input) 
+        CreateLeaseContainerIfNotExists = false)] IReadOnlyList<JsonElement> input) 
     {
         if (input is null || input.Count is 0) return;
 
